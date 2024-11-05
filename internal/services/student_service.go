@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"student-api/config"
 	"student-api/internal/models"
@@ -19,9 +21,33 @@ type StudentService struct {
 }
 
 func NewStudentService() *StudentService {
-    return &StudentService{
+    s:= &StudentService{
         students: make(map[int]models.Student),
         nextID:   1,
+    }
+    // Loading initial data from JSON file
+    s.LoadInitialData("data/students.json") 
+    return s
+}
+// Loading initial data of students from a JSON file into the in-memory store
+func (s *StudentService) LoadInitialData(filePath string) {
+    fileData, err := ioutil.ReadFile(filePath)
+    if err != nil {
+        log.Fatalf("Failed to read data file: %v", err)
+    }
+
+    var students []models.Student
+    if err := json.Unmarshal(fileData, &students); err != nil {
+        log.Fatalf("Failed to parse data file: %v", err)
+    }
+
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    for _, student := range students {
+        s.students[student.ID] = student
+        if student.ID >= s.nextID {
+            s.nextID = student.ID + 1
+        }
     }
 }
 
