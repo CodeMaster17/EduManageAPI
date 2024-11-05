@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"student-api/config"
 	"student-api/internal/models"
 	"sync"
@@ -31,7 +31,7 @@ func NewStudentService() *StudentService {
 }
 // Loading initial data of students from a JSON file into the in-memory store
 func (s *StudentService) LoadInitialData(filePath string) {
-    fileData, err := ioutil.ReadFile(filePath)
+    fileData, err := os.ReadFile(filePath)
     if err != nil {
         log.Fatalf("Failed to read data file: %v", err)
     }
