@@ -51,13 +51,43 @@ func (s *StudentService) LoadInitialData(filePath string) {
     }
 }
 
-func (s *StudentService) CreateStudent(student models.Student) models.Student {
+// writing the current students map to the JSON file
+func (s *StudentService) saveToFile(filePath string) error {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+
+    // Convert the map to a slice for JSON serialization
+    students := make([]models.Student, 0, len(s.students))
+    for _, student := range s.students {
+        students = append(students, student)
+    }
+
+    data, err := json.MarshalIndent(students, "", "  ")
+    if err != nil {
+        return err
+    }
+
+    if err := os.WriteFile(filePath, data, 0644); err != nil {
+        return err
+    }
+
+    return nil
+}
+
+func (s *StudentService) CreateStudent(student models.Student) (models.Student, error) {
     s.mu.Lock()
     defer s.mu.Unlock()
     student.ID = s.nextID
     s.students[student.ID] = student
     s.nextID++
-    return student
+
+    // Saving the updated student list to the file
+    if err := s.saveToFile("data/students.json"); err != nil {
+        log.Printf("Failed to save data: %v", err)
+        return models.Student{}, err
+    }
+
+    return student, nil
 }
 
 func (s *StudentService) GetAllStudents() []models.Student {
