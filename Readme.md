@@ -1,5 +1,6 @@
 ## Folder structure
 
+```
 edumanageapi
 ├── cmd/                    # Main applications for the project
 │   └── server/             # Main application entry point
@@ -20,3 +21,5 @@ edumanageapi
 └── README.md               # Project README file                # 
 ├── go.mod                  # Go module file
 └── go.sum                  # Go dependencies checksum file
+
+```
