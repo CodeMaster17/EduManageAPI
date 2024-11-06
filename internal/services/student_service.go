@@ -4,159 +4,161 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
-	"os"
+	"strconv"
 	"student-api/config"
-	"student-api/internal/models"
-	"sync"
+	"student-api/internal/types"
 
 	"github.com/go-resty/resty/v2"
+	"golang.org/x/exp/rand"
 )
 
+// Message struct to use within request/response structures
+type Message struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+// Student struct with ID, name, and other details
+type Student struct {
+	ID      string  `json:"id"`
+	Name    string  `json:"name"`
+	Age     int     `json:"age"`
+	Email   string  `json:"email"`
+	Message Message `json:"message"`
+}
+
+// StudentService to manage students in-memory
 type StudentService struct {
-    students map[int]models.Student
-    mu       sync.Mutex
-    nextID   int
+	students map[int]Student
 }
 
+var students []types.Student
+
+// NewStudentService initializes the StudentService with an empty map and ID counter
 func NewStudentService() *StudentService {
-    s:= &StudentService{
-        students: make(map[int]models.Student),
-        nextID:   1,
-    }
-    // Loading initial data from JSON file
-    s.LoadInitialData("data/students.json") 
-    return s
-}
-// Loading initial data of students from a JSON file into the in-memory store
-func (s *StudentService) LoadInitialData(filePath string) {
-    fileData, err := os.ReadFile(filePath)
-    if err != nil {
-        log.Fatalf("Failed to read data file: %v", err)
-    }
-
-    var students []models.Student
-    if err := json.Unmarshal(fileData, &students); err != nil {
-        log.Fatalf("Failed to parse data file: %v", err)
-    }
-
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    for _, student := range students {
-        s.students[student.ID] = student
-        if student.ID >= s.nextID {
-            s.nextID = student.ID + 1
-        }
-    }
+	return &StudentService{
+		students: make(map[int]Student),
+	}
 }
 
-// writing the current students map to the JSON file
-func (s *StudentService) saveToFile(filePath string) error {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-
-    // Convert the map to a slice for JSON serialization
-    students := make([]models.Student, 0, len(s.students))
-    for _, student := range s.students {
-        students = append(students, student)
-    }
-
-    data, err := json.MarshalIndent(students, "", "  ")
-    if err != nil {
-        return err
-    }
-
-    if err := os.WriteFile(filePath, data, 0644); err != nil {
-        return err
-    }
-
-    return nil
+// get all students
+func GetAllStudents(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(students)
 }
 
-func (s *StudentService) CreateStudent(student models.Student) (models.Student, error) {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    student.ID = s.nextID
-    s.students[student.ID] = student
-    s.nextID++
+// --- CreateStudent creates a new student and adds it to the map ---
+func (s *StudentService) CreateStudent(student types.Student) ([]types.Student, error) {
 
-    // Saving the updated student list to the file
-    if err := s.saveToFile("data/students.json"); err != nil {
-        log.Printf("Failed to save data: %v", err)
-        return models.Student{}, err
-    }
-
-    return student, nil
+	student.ID = strconv.Itoa(rand.Intn(1000000))
+	students = append(students, student)
+	fmt.Println("Created student Inside: ", student)
+	return students, nil
 }
 
-func (s *StudentService) GetAllStudents() []models.Student {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    studentList := make([]models.Student, 0, len(s.students))
-    for _, student := range s.students {
-        studentList = append(studentList, student)
-    }
-    return studentList
+// get all the students
+func (s *StudentService) GetAllStudents() ([]types.Student, error) {
+	return students, nil
 }
 
-func (s *StudentService) GetStudentByID(id int) (models.Student, error) {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    student, exists := s.students[id]
-    if !exists {
-        return models.Student{}, errors.New("student not found")
-    }
-    return student, nil
+// GetStudentByID retrieves a student by ID
+func (s *StudentService) GetStudentByID(id string) (types.Student, error) {
+	for _, item := range students {
+		if item.ID == id {
+			return item, nil
+		}
+	}
+	return types.Student{}, errors.New("student not found")
 }
 
-func (s *StudentService) UpdateStudent(id int, updatedStudent models.Student) (models.Student, error) {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    _, exists := s.students[id]
-    if !exists {
-        return models.Student{}, errors.New("student not found")
-    }
-    updatedStudent.ID = id
-    s.students[id] = updatedStudent
-    return updatedStudent, nil
+func (s *StudentService) UpdateStudent(id string, updatedData types.Student) (types.Student, error) {
+	for index, item := range students {
+		if item.ID == id {
+
+			updatedData.ID = id
+			students[index] = updatedData
+			return updatedData, nil
+		}
+	}
+	return types.Student{}, errors.New("student not found")
 }
 
-func (s *StudentService) DeleteStudent(id int) error {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    _, exists := s.students[id]
-    if !exists {
-        return errors.New("student not found")
-    }
-    delete(s.students, id)
-    return nil
+// DeleteStudent deletes a student by ID
+func (s *StudentService) DeleteStudent(id string) error {
+	for index, item := range students {
+		if item.ID == id {
+			students = append(students[:index], students[index+1:]...)
+			return nil
+		}
+	}
+	return errors.New("student not found")
 }
 
-func (s *StudentService) GenerateStudentSummary(id int) (string, error) {
-    student, err := s.GetStudentByID(id)
-    if err != nil {
-        return "", err
-    }
+// GenerateStudentSummary generates a summary for a student by ID
+func (s *StudentService) GenerateStudentSummary(id string) (string, error) {
+	student, err := s.GetStudentByID(id)
+	if err != nil {
+		return "", err
+	}
 
-    client := resty.New()
-    resp, err := client.R().
-        SetHeader("Content-Type", "application/json").
-        SetBody(map[string]interface{}{
-            "prompt": fmt.Sprintf("Provide a summary for a student named %s, aged %d, email: %s.", student.Name, student.Age, student.Email),
-        }).
-        Post(config.OllamaAPIURL)
+	// Create the prompt for the Ollama API
+	prompt := fmt.Sprintf("Generate summary and characterstics of student with name %s and email %s", student.Name, student.Email)
 
-    if err != nil || resp.StatusCode() != http.StatusOK {
-        return "", errors.New("failed to generate summary")
-    }
+	// Initialize Resty client
+	client := resty.New()
 
-    var result map[string]interface{}
-    json.Unmarshal(resp.Body(), &result)
+	if config.OllamaAPIURL == "" {
+		return "", errors.New("ollama API URL is not set")
+	}
+	fmt.Println("Program here 2")
 
-    summary, ok := result["summary"].(string)
-    if !ok {
-        return "", errors.New("invalid response from Ollama")
-    }
-    return summary, nil
+	// Make the request to the Ollama API
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody(map[string]interface{}{
+			"model":  "llama3.2",
+			"prompt": prompt,
+			"format": "json",
+			"stream": false,
+		}).
+		Post(config.OllamaAPIURL)
+
+	// Check for errors and the response status code
+	if err != nil {
+		return "", errors.New("failed to generate summary: " + err.Error())
+	}
+	fmt.Println("Program here 2", resp)
+	fmt.Println(resp.StatusCode())
+	if resp.StatusCode() != http.StatusOK {
+		fmt.Println("Program inside status code")
+		return "", fmt.Errorf("ollama API returned status code %d", resp.StatusCode())
+	}
+
+	// Parse the response from the Ollama API
+	var result map[string]interface{}
+
+	if err := json.Unmarshal(resp.Body(), &result); err != nil {
+		return "", errors.New("error parsing Ollama API response: " + err.Error())
+	}
+
+	// Extract the summary from the response
+	responseString, ok := result["response"].(string)
+	if !ok {
+		return "", errors.New("invalid response format from Ollama API")
+	}
+
+	// Unmarshal the nested JSON string to extract the content
+	var responseContent map[string]interface{}
+	if err := json.Unmarshal([]byte(responseString), &responseContent); err != nil {
+		return "", errors.New("error parsing nested response JSON: " + err.Error())
+	}
+
+	// Extract the actual content you want to return
+	content, ok := responseContent["content"].(string)
+	if !ok {
+		return "", errors.New("invalid content format in nested response")
+	}
+
+	return content, nil
 }
