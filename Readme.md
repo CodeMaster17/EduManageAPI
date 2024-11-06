@@ -2,8 +2,6 @@
 
  A simple go application made folllowing SOLID Principles and DRY Principle, that generates summary of students using Ollama LLM using LLama3.2 model.
 
-
-
 ## Folder structure
 
 ```
@@ -27,5 +25,30 @@ edumanageapi
 └── README.md               # Project README file                # 
 ├── go.mod                  # Go module file
 └── go.sum                  # Go dependencies checksum file
+
+```
+
+
+## Installation
+
+1. Clone the repository
+```
+git clone https://github.com/CodeMaster17/EduManageAPI.git
+
+```
+
+2. Change the directory
+```
+cd EduManageAPI
+```
+3. Start the application
+```
+go run cmd/server/main.go
+```
+4. Install and run Ollama
+```
+1. Install Ollama on your localhost by following: https://github.com/ollama/ollama/blob/main/README.md#quickstart
+2. Install Llama3 language model for Ollama
+3. Make API Requests to localhost and pass the Student object to generate the summary. Do the prompt engineering to get the summary for the Student.
 
 ```
