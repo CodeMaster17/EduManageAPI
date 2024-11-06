@@ -1,3 +1,9 @@
+## EduManage API
+
+ A simple go application made folllowing SOLID Principles and DRY Principle, that generates summary of students using Ollama LLM using LLama3.2 model.
+
+
+
 ## Folder structure
 
 ```
